@@ -35,6 +35,20 @@ func Config() {
 // @retuns --
 func loadDefaultConfig(configuration *beans.Configuration) {
 
+	// Configuración por defecto de log
+	loadDefaultConfigLog(configuration)
+
+	// Configuración por defecto para la base datos
+	loadDefaultConfigDatabase(configuration)
+
+}
+
+// loadDefaultConfigLog configuración por defecto para log
+//
+// @parameters configuration  configuración a la cual realizar ciertas operaciones por defecto
+//
+// @retuns --
+func loadDefaultConfigLog(configuration *beans.Configuration) {
 	configuration.ConfigurationLog.Compress = true
 
 	// Si no se pasa tiempo máximo lo ponemos a 30
@@ -56,6 +70,15 @@ func loadDefaultConfig(configuration *beans.Configuration) {
 	if configuration.ConfigurationLog.PathFileLogging == "" {
 		configuration.ConfigurationLog.PathFileLogging = "rfcheckbd.log"
 	}
+}
+
+// loadDefaultConfigDatabase configuración por defecto para la base datos
+//
+// @parameters configuration  configuración a la cual realizar ciertas operaciones por defecto
+//
+// @retuns --
+func loadDefaultConfigDatabase(configuration *beans.Configuration) {
+
 }
 
 // loadConfiguration : Método para cargar la configuración

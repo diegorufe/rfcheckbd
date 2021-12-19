@@ -8,7 +8,7 @@ import (
 )
 
 // Config Método para realizar la configuración de la aplicación
-func Config() {
+func Config() beans.Configuration {
 
 	// Flags del log para dejarlo "BONITO"
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
@@ -26,6 +26,8 @@ func Config() {
 	} else {
 		log.Panic("No se ha podido cargar la configuración de la aplicación")
 	}
+
+	return configuration
 }
 
 // loadDefaultConfig: Método para cargar ciertos datos de la configuración por defecto

@@ -97,12 +97,15 @@ func loadConfiguration(pathJsonFile string) (beans.Configuration, error) {
 	var configuration beans.Configuration
 	var err error
 
+	if pathJsonFile == "" {
+		pathJsonFile = "rfcheckbd.json"
+	}
+
 	file, err := os.Open(pathJsonFile)
 
 	if err == nil {
 		defer file.Close()
 		decoder := json.NewDecoder(file)
-		configuration := beans.Configuration{}
 
 		err = decoder.Decode(&configuration)
 	} else {

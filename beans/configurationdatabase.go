@@ -6,10 +6,11 @@ import (
 
 // ConfigurationDatabase para indicar la configuración de la base datos
 type ConfigurationDatabase struct {
-	Type           constants.DatabaseType            // Tipo de base de datos mysql, posgrees etc ...
-	PathSaveBackup string                            // Ruta donde guardar el fichero de backup. Tiene que ser un directorio existente
-	Commands       []constants.DatabaseCommandsTypes // Comandos a ejecutar
-	User           string                            // Usuario para realizar la conexión
-	Password       string                            // Contraseña para realizar la conexión
-	DatabaseName   string                            // Nobre de la base de datos para conexión o realizar backup
+	Type           constants.DatabaseType            `json:"Type"`           // Tipo de base de datos mysql, posgrees etc ...
+	PathSaveBackup string                            `json:"PathSaveBackup"` // Ruta donde guardar el fichero de backup. Tiene que ser un directorio existente
+	Commands       []constants.DatabaseCommandsTypes `json:"Commands"`       // Comandos a ejecutar
+	User           string                            `json:"User"`           // Usuario para realizar la conexión
+	Password       string                            `json:"Password"`       // Contraseña para realizar la conexión
+	DatabaseName   string                            `json:"DatabaseName"`   // Nobre de la base de datos para conexión o realizar backup
+	PathMigrations string                            `json:"PathMigrations"` // Ruta donde se encuentran las migraciones para ejecutar
 }

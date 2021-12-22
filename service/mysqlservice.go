@@ -35,6 +35,9 @@ func ConnectMysqlDatabase(cacheProcess beans.CacheProcess, configuration beans.C
 
 	// Creamos versionado de la tabla
 	createVersionTable(cacheProcess, configuration)
+
+	// Creamos tabla de historico de migraciones
+	createHistoryTable(cacheProcess, configuration)
 }
 
 // createVersionTable Método para crear el versioando de la tabla
@@ -53,11 +56,37 @@ func createVersionTable(cacheProcess beans.CacheProcess, configuration beans.Con
 		"	`execDate` DATETIME  NOT NULL COMMENT 'Fecha de última ejecución del módulo' , " +
 		"	UNIQUE KEY `module_UNIQUE` (`module`),  " +
 		"	 PRIMARY KEY  (`id`)  " +
-		"  );"
+		"  ) COMMENT 'Tabla que contiene las versiones de las migraciones realizdadas';"
 
 	_, err := cacheProcess.DBSql.Exec(query)
 
 	if err != nil {
 		log.Panicf("Se ha produdio un error en la creación de la tabla de versionado de la migración. %s", err)
+	}
+}
+
+// createVersionTable Método para crear el versioando de la tabla
+//
+// @parameters cacheProcess cache donde guardar ciertos datos del procesado
+//
+// @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
+//
+// @returns --
+func createHistoryTable(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
+
+	query := "CREATE TABLE IF NOT EXISTS `rfchecbd_migrations_history` (" +
+		"	`id` int(11) NOT NULL auto_increment,   " +
+		"	`rfchecbd_migrations_id` int(11) NOT NULL COMMENT 'Módulo de la migración',     " +
+		"	`fileName` varchar(500)  NOT NULL COMMENT 'Nombre del fichero que se ejecuto' ,  " +
+		"	`execDate` DATETIME  NOT NULL COMMENT 'Fecha de ejecución del fichero' , " +
+		"	UNIQUE KEY `module_UNIQUE` (`rfchecbd_migrations_id`, `fileName`),  " +
+		"	 PRIMARY KEY  (`id`),  " +
+		"    FOREIGN KEY (rfchecbd_migrations_id) REFERENCES rfchecbd_migrations(id) " +
+		"  ) COMMENT 'Tabla que contiene el histórico de ficheros pasados en cada migración';"
+
+	_, err := cacheProcess.DBSql.Exec(query)
+
+	if err != nil {
+		log.Panicf("Se ha produdio un error en la creación de la tabla de historico de migraciones. %s", err)
 	}
 }

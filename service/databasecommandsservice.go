@@ -21,6 +21,12 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 	log.Println("Procesando comandos base de datos")
 
 	var cacheProcess beans.CacheProcess
+	var databaseService IDabaseService
+
+	switch configuration.ConfigurationDatabase.Type {
+	case constants.Mysql:
+		databaseService = MysqlDatabaseService{}
+	}
 
 	// Procesamos los comandos
 	for _, command := range configuration.ConfigurationDatabase.Commands {
@@ -31,7 +37,7 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 		case constants.Migrate:
 
 			// Connectamos contra la base de datos
-			connectDatabase(cacheProcess, configuration)
+			databaseService.ConnectDatabase(cacheProcess, configuration)
 
 			// Miramos la existencia del directorio de migraciones
 			stat, err := os.Stat(configuration.ConfigurationDatabase.PathMigrations)
@@ -47,7 +53,7 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 					if err != nil {
 						log.Panicf("Se ha producido un error al listar el directorio de migraciones %s", err)
 					} else {
-						processModulesMigratios(cacheProcess, configuration, files)
+						processModulesMigratios(cacheProcess, configuration, databaseService, files)
 					}
 					// Lanzamos error en el caso de que no sea un directorio
 				} else {
@@ -64,14 +70,17 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 //
 // @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 //
+// @parameter databaseService servicio para realizar la lógica funcional de la base de datos
+//
 // @parameter files array de información de ficheros que serán los módulos a migrar
 //
 // @returns ---
-func processModulesMigratios(cacheProcess beans.CacheProcess, configuration beans.Configuration, files []fs.FileInfo) {
+func processModulesMigratios(cacheProcess beans.CacheProcess, configuration beans.Configuration, databaseService IDabaseService, files []fs.FileInfo) {
 	var pathMigrations string = configuration.ConfigurationDatabase.PathMigrations
 	for _, module := range files {
 		// En el caso de que el módulo sea un directorio listamos sus versiones
 		if module.IsDir() {
+
 			log.Printf("Procesando módulo a migrar %s", module.Name())
 
 			filesModule, err := ioutil.ReadDir(filepath.Join(pathMigrations, module.Name()))
@@ -96,6 +105,9 @@ func processModulesMigratios(cacheProcess beans.CacheProcess, configuration bean
 				})
 			}
 
+			// Buscamos la última versión del módulo
+			databaseService.FindVersionModule(cacheProcess, configuration, module.Name())
+
 			// Recorremos los ficheros del módulo que serán las versiones
 			for _, fileVersionModule := range filesModule {
 				log.Printf("Procesando versión a migrar %s del módulo %s", fileVersionModule.Name(), module.Name())
@@ -113,7 +125,7 @@ func processModulesMigratios(cacheProcess beans.CacheProcess, configuration bean
 	}
 }
 
-// processVersion: Método para procesar la versión
+// processVersion: Método para procesar la versión. Ejemplo versión 10 del módulo de contabiliad
 //
 // @parameters cacheProcess cache donde guardar ciertos datos del procesado
 //
@@ -127,19 +139,17 @@ func processModulesMigratios(cacheProcess beans.CacheProcess, configuration bean
 //
 // @returns ---
 func processVersion(cacheProcess beans.CacheProcess, configuration beans.Configuration, fileVersion fs.FileInfo, moduleName string, pathVersion string) {
+	log.Printf("Procesando versión %s del módulo %s", fileVersion.Name(), moduleName)
 
-}
+	versionToProcess, err := strconv.Atoi(fileVersion.Name())
 
-// connectDatabase. Métoodo para connectar con la base de datos
-//
-// @parameters cacheProcess cache donde guardar ciertos datos del procesado
-//
-// @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
-//
-// @returns --
-func connectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
-	switch configuration.ConfigurationDatabase.Type {
-	case constants.Mysql:
-		ConnectMysqlDatabase(cacheProcess, configuration)
+	if err != nil {
+		log.Panicf("Error al convertir a entero la versión del módulo. %s", err)
+	}
+
+	if versionToProcess >= cacheProcess.VersionModule {
+		// TODO procesar la versión
+	} else {
+		log.Printf("No se procesará la versión %s del módulo %s por que es inferior a la versión actual %s", fileVersion.Name(), moduleName, strconv.Itoa(cacheProcess.VersionModule))
 	}
 }

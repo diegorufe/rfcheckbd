@@ -9,6 +9,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// MysqlDatabaseService servicio para definir la funcionalidad de backup, ejercución de scripts etc ... para mysql
+type MysqlDatabaseService struct {
+}
+
 // ConnectMysqlDatabase. Métoodo para connectar con la base de datos
 //
 // @parameters cacheProcess cache donde guardar ciertos datos del procesado
@@ -16,7 +20,7 @@ import (
 // @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 //
 // @returns --
-func ConnectMysqlDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
+func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
 	log.Println("Connectando con la base de datos de tipo mysql")
 
 	// TODO pedir los datos por línea de comandos
@@ -38,6 +42,30 @@ func ConnectMysqlDatabase(cacheProcess beans.CacheProcess, configuration beans.C
 
 	// Creamos tabla de historico de migraciones
 	createHistoryTable(cacheProcess, configuration)
+}
+
+// FindVersionModuleMysql : Método apra buscar la versión del módulo para mysql
+//
+// @parameters cacheProcess cache donde guardar ciertos datos del procesado
+//
+// @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
+//
+//
+// @parameter moduleName es el nombre del módulo
+//
+// @returns --
+func (service MysqlDatabaseService) FindVersionModule(cacheProcess beans.CacheProcess, configuration beans.Configuration, moduleName string) int64 {
+	var version int64
+
+	query := "SELECT version from rfchecbd_migrations where module = %s"
+
+	err := cacheProcess.DBSql.QueryRow(query, moduleName).Scan(&version)
+
+	if err != nil {
+		log.Panicf("Se ha produdio un error a la hora de buscar la versión del módulo. %s", err)
+	}
+
+	return version
 }
 
 // createVersionTable Método para crear el versioando de la tabla

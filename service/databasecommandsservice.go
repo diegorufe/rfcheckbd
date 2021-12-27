@@ -53,7 +53,7 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 					if err != nil {
 						log.Panicf("Se ha producido un error al listar el directorio de migraciones %s", err)
 					} else {
-						processModulesMigratios(cacheProcess, configuration, databaseService, files)
+						processModulesMigrations(cacheProcess, configuration, databaseService, files)
 					}
 					// Lanzamos error en el caso de que no sea un directorio
 				} else {
@@ -64,7 +64,7 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 	}
 }
 
-// processModulesMigratios. Método para procesar los módulos de las migraciones
+// processModulesMigrations. Método para procesar los módulos de las migraciones
 //
 // @parameters cacheProcess cache donde guardar ciertos datos del procesado
 //
@@ -75,7 +75,7 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 // @parameter files array de información de ficheros que serán los módulos a migrar
 //
 // @returns ---
-func processModulesMigratios(cacheProcess beans.CacheProcess, configuration beans.Configuration, databaseService IDabaseService, files []fs.FileInfo) {
+func processModulesMigrations(cacheProcess beans.CacheProcess, configuration beans.Configuration, databaseService IDabaseService, files []fs.FileInfo) {
 	var pathMigrations string = configuration.ConfigurationDatabase.PathMigrations
 	for _, module := range files {
 		// En el caso de que el módulo sea un directorio listamos sus versiones
@@ -116,7 +116,7 @@ func processModulesMigratios(cacheProcess beans.CacheProcess, configuration bean
 				pathVersion := filepath.Join(pathMigrations, module.Name(), fileVersionModule.Name())
 
 				// Procesamos la versión
-				processVersion(cacheProcess, configuration, fileVersionModule, module.Name(), pathVersion)
+				processVersion(cacheProcess, configuration, databaseService, fileVersionModule, module.Name(), pathVersion)
 			}
 
 		} else {
@@ -131,6 +131,8 @@ func processModulesMigratios(cacheProcess beans.CacheProcess, configuration bean
 //
 // @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 //
+// @parameter databaseService servicio para realizar la lógica funcional de la base de datos
+//
 // @parameter fileVersion fichero de la versión que será un directorio
 //
 // @parameter moduleName es el nombre del módulo de la versión
@@ -138,7 +140,7 @@ func processModulesMigratios(cacheProcess beans.CacheProcess, configuration bean
 // @paremeter pathVersion es la ruta donde se encuentra la versión para listar los ficheros
 //
 // @returns ---
-func processVersion(cacheProcess beans.CacheProcess, configuration beans.Configuration, fileVersion fs.FileInfo, moduleName string, pathVersion string) {
+func processVersion(cacheProcess beans.CacheProcess, configuration beans.Configuration, databaseService IDabaseService, fileVersion fs.FileInfo, moduleName string, pathVersion string) {
 	log.Printf("Procesando versión %s del módulo %s", fileVersion.Name(), moduleName)
 
 	versionToProcess, err := strconv.Atoi(fileVersion.Name())
@@ -148,7 +150,29 @@ func processVersion(cacheProcess beans.CacheProcess, configuration beans.Configu
 	}
 
 	if versionToProcess >= cacheProcess.VersionModule {
-		// TODO procesar la versión
+		// Leemos los ficheros de la versión
+		filesVersion, err := ioutil.ReadDir(pathVersion)
+
+		if err != nil {
+			log.Panicf("Se ha producido un error al buscar los ficheros de la versión: %s para el módulo %s. Error %s", fileVersion.Name(), moduleName, err)
+		}
+
+		// Ordenamos los ficheros por nombre
+		sort.Slice(filesVersion, func(first, second int) bool {
+			firstFile := filesVersion[first].Name()
+			secondFIle := filesVersion[second].Name()
+
+			return firstFile < secondFIle
+		})
+
+		// Recorremos los ficheros
+		for _, fileInVersion := range filesVersion {
+			log.Printf("Procesando fichero %s de la versión %s del módulo %s", fileInVersion.Name(), fileVersion.Name(), moduleName)
+
+			// Procesamos el ficheros
+			databaseService.ProcessFileInVersion(cacheProcess, configuration, moduleName, fileVersion.Name(), versionToProcess, pathVersion, fileInVersion)
+		}
+
 	} else {
 		log.Printf("No se procesará la versión %s del módulo %s por que es inferior a la versión actual %s", fileVersion.Name(), moduleName, strconv.Itoa(cacheProcess.VersionModule))
 	}

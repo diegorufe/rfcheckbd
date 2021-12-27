@@ -2,7 +2,10 @@ package service
 
 import (
 	"database/sql"
+	"io/fs"
 	"log"
+	"os"
+	"path/filepath"
 	"rfcheckbd/beans"
 	"strconv"
 
@@ -13,13 +16,6 @@ import (
 type MysqlDatabaseService struct {
 }
 
-// ConnectMysqlDatabase. Métoodo para connectar con la base de datos
-//
-// @parameters cacheProcess cache donde guardar ciertos datos del procesado
-//
-// @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
-//
-// @returns --
 func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
 	log.Println("Connectando con la base de datos de tipo mysql")
 
@@ -44,16 +40,6 @@ func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProc
 	createHistoryTable(cacheProcess, configuration)
 }
 
-// FindVersionModuleMysql : Método apra buscar la versión del módulo para mysql
-//
-// @parameters cacheProcess cache donde guardar ciertos datos del procesado
-//
-// @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
-//
-//
-// @parameter moduleName es el nombre del módulo
-//
-// @returns --
 func (service MysqlDatabaseService) FindVersionModule(cacheProcess beans.CacheProcess, configuration beans.Configuration, moduleName string) int64 {
 	var version int64
 
@@ -66,6 +52,70 @@ func (service MysqlDatabaseService) FindVersionModule(cacheProcess beans.CachePr
 	}
 
 	return version
+}
+
+func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.CacheProcess, configuration beans.Configuration, moduleName string, version string, versionInt int, pathVersion string, fileInVersion fs.FileInfo) {
+	// Tenemos que buscar si está en el los registros de ficheros ejecutados
+	var id int64
+
+	queryFindFile := "SELECT h.id from rfchecbd_migrations_history h INNER JOIN rfchecbd_migrations m ON h.rfchecbd_migrations_id = m.id  where h.fileName = %s and m.module = %s"
+
+	err := cacheProcess.DBSql.QueryRow(queryFindFile, moduleName).Scan(&id)
+
+	if err != nil {
+		log.Panicf("Se ha produdio un error a la hora de buscar la el fichero de la versión %s para el módulo %s. Error %s", version, moduleName, err)
+	}
+
+	// En el caso de que no exista lo proceso
+	if id <= 0 {
+
+		dataFile, errReadFile := os.ReadFile(filepath.Join(pathVersion, fileInVersion.Name()))
+
+		if errReadFile != nil {
+			log.Panicf("Se ha producido un error leer el fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errReadFile)
+		}
+
+		// Datos del fichero a string
+		queryProcessFIle := string(dataFile)
+
+		// guardamos el fichero en el historico
+		queryInsertInHistory := "INSERT INTO rfchecbd_migrations_history (`rfchecbd_migrations_id`, `fileName`, `execDate` ) " +
+			" VALUES ( " +
+			" (SELECT m.id FROM  rfchecbd_migrations m where module = %s), " +
+			" %s, " +
+			" %s);"
+
+		queryProcessFIle = queryProcessFIle + " " + queryInsertInHistory
+
+		// En el caso de que la versión sea menor o igual a cero la insertamos inicialmente
+		if versionInt <= 0 {
+			// TODO
+			_ = "INSERT IGNORE INTO rfchecbd_migrations (`version`, `module`, `execDate`) " +
+				" VALUES ( " +
+				" %d, " +
+				" %s, " +
+				" %s); "
+		}
+
+		// Query para actualizar la versión
+		// TODO
+		_ = "UPDATE rfchecbd_migrations " +
+			"SET " +
+			" `version` = %d, " +
+			" `execDate` = %s " +
+			"WHERE `module` = %s; "
+
+		// Ejecutamos el proceso del fichero
+		// TODO revisar paráemtros de tipo date
+		_, errProcessFile := cacheProcess.DBSql.Exec(queryProcessFIle, moduleName, fileInVersion.Name(), "")
+
+		if errProcessFile != nil {
+			log.Panicf("Se ha producido un error leer el procesar el fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errProcessFile)
+		}
+
+	} else {
+		log.Printf("Fichero %s ya procesado para la versión %s y módulo %s", fileInVersion.Name(), version, pathVersion)
+	}
 }
 
 // createVersionTable Método para crear el versioando de la tabla

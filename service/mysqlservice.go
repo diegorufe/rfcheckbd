@@ -1,13 +1,17 @@
 package service
 
 import (
+	"container/list"
+	"context"
 	"database/sql"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"rfcheckbd/beans"
+	"rfcheckbd/utils"
 	"strconv"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -78,40 +82,95 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		// Datos del fichero a string
 		queryProcessFIle := string(dataFile)
 
+		var listParams list.List
+
+		var counterParam *int64
+
+		*counterParam = 0
+
+		execDate := time.Now().Format(time.RFC3339)
+
 		// guardamos el fichero en el historico
 		queryInsertInHistory := "INSERT INTO rfchecbd_migrations_history (`rfchecbd_migrations_id`, `fileName`, `execDate` ) " +
 			" VALUES ( " +
-			" (SELECT m.id FROM  rfchecbd_migrations m where module = %s), " +
-			" %s, " +
-			" %s);"
+			" (SELECT m.id FROM  rfchecbd_migrations m where module = %" + utils.IncrementeCounterAndReturnToString(counterParam) + "), " +
+			" %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
+			" %" + utils.IncrementeCounterAndReturnToString(counterParam) + " );"
+
+		listParams.PushBack(moduleName)
+		listParams.PushBack(fileInVersion)
+		listParams.PushBack(execDate)
 
 		queryProcessFIle = queryProcessFIle + " " + queryInsertInHistory
 
 		// En el caso de que la versión sea menor o igual a cero la insertamos inicialmente
 		if versionInt <= 0 {
-			// TODO
-			_ = "INSERT IGNORE INTO rfchecbd_migrations (`version`, `module`, `execDate`) " +
+			queryInsertMigrataions := "INSERT IGNORE INTO rfchecbd_migrations (`version`, `module`, `execDate`) " +
 				" VALUES ( " +
-				" %d, " +
-				" %s, " +
-				" %s); "
+				" %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
+				" %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
+				" %" + utils.IncrementeCounterAndReturnToString(counterParam) + " );"
+
+			listParams.PushBack(versionInt)
+			listParams.PushBack(moduleName)
+			listParams.PushBack(execDate)
+
+			queryProcessFIle = queryProcessFIle + " " + queryInsertMigrataions
 		}
 
-		// Query para actualizar la versión
-		// TODO
-		_ = "UPDATE rfchecbd_migrations " +
+		// Query para actualizar la versión siempre por que puede que el insert de la migración ya existiera antes y por lo tanto no realizó
+		queryUpdateVersion := "UPDATE rfchecbd_migrations " +
 			"SET " +
-			" `version` = %d, " +
-			" `execDate` = %s " +
-			"WHERE `module` = %s; "
+			" `version` = %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
+			" `execDate` = %" + utils.IncrementeCounterAndReturnToString(counterParam) + " " +
+			"WHERE `module` = %" + utils.IncrementeCounterAndReturnToString(counterParam) + "; "
+
+		queryProcessFIle = queryProcessFIle + " " + queryUpdateVersion
+
+		listParams.PushBack(versionInt)
+		listParams.PushBack(execDate)
+		listParams.PushBack(moduleName)
+
+		// Paso la lista de parámetros a un array
+		arrayParams := make([]interface{}, listParams.Len())
+		var counter uint64 = 0
+
+		for element := listParams.Front(); element != nil; element = element.Next() {
+			// siempre utilziar el value del elemento "element.Value"
+			arrayParams[counter] = element.Value
+			counter = counter + 1
+		}
+
+		// Abrimos transacción
+		ctx := context.Background()
+		tx, errTx := cacheProcess.DBSql.BeginTx(ctx, nil)
+
+		if errTx != nil {
+			log.Panicf("Se ha producido un error al abrir una transación para ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errTx)
+		}
 
 		// Ejecutamos el proceso del fichero
-		// TODO revisar paráemtros de tipo date
-		_, errProcessFile := cacheProcess.DBSql.Exec(queryProcessFIle, moduleName, fileInVersion.Name(), "")
+		_, errProcessFile := tx.ExecContext(ctx, queryProcessFIle, arrayParams)
 
 		if errProcessFile != nil {
-			log.Panicf("Se ha producido un error leer el procesar el fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errProcessFile)
+
+			errorRollback := tx.Rollback()
+
+			if errorRollback != nil {
+				log.Panicf("Se ha producido un error al realizar el rollback de la transación al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s. Error procesado fichero %s", fileInVersion.Name(), version, moduleName, errorRollback, errProcessFile)
+			}
+
+			log.Panicf("Se ha producido un error al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errProcessFile)
+
 		}
+
+		errCommit := tx.Commit()
+
+		if errCommit != nil {
+			log.Panicf("Se ha producido un error al realizar el commit de la transación al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errCommit)
+		}
+
+		log.Printf("Fichero %s procesado con éxito para la versión %s y módulo %s", fileInVersion.Name(), version, pathVersion)
 
 	} else {
 		log.Printf("Fichero %s ya procesado para la versión %s y módulo %s", fileInVersion.Name(), version, pathVersion)

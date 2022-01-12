@@ -45,21 +45,21 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 			// Comrpobamos que el directorio de módulos exista
 			if err != nil {
 				log.Panicf("Se ha producido un error al comprobar el path de la migración %s", err)
-			} else {
-				// En el caso de ser una carpeta continuamos leyendo el directorio
-				if stat.IsDir() {
-					files, err := ioutil.ReadDir(configuration.ConfigurationDatabase.PathMigrations)
-
-					if err != nil {
-						log.Panicf("Se ha producido un error al listar el directorio de migraciones %s", err)
-					} else {
-						processModulesMigrations(cacheProcess, configuration, databaseService, files)
-					}
-					// Lanzamos error en el caso de que no sea un directorio
-				} else {
-					log.Panicf("La ruta donde se encuentran los módulos de migraciones no es un directorio. Ruta de módulos de migraciones %s", stat.Name())
-				}
 			}
+
+			// En el caso de ser una carpeta continuamos leyendo el directorio
+			if !stat.IsDir() {
+				log.Panicf("La ruta donde se encuentran los módulos de migraciones no es un directorio. Ruta de módulos de migraciones %s", stat.Name())
+			}
+
+			files, err := ioutil.ReadDir(configuration.ConfigurationDatabase.PathMigrations)
+
+			if err != nil {
+				log.Panicf("Se ha producido un error al listar el directorio de migraciones %s", err)
+			}
+
+			processModulesMigrations(cacheProcess, configuration, databaseService, files)
+
 		}
 	}
 }
@@ -80,30 +80,29 @@ func processModulesMigrations(cacheProcess beans.CacheProcess, configuration bea
 	for _, module := range files {
 		// En el caso de que el módulo sea un directorio listamos sus versiones
 		if module.IsDir() {
-
 			log.Printf("Procesando módulo a migrar %s", module.Name())
 
 			filesModule, err := ioutil.ReadDir(filepath.Join(pathMigrations, module.Name()))
 
 			if err != nil {
 				log.Panicf("Se ha producido un error al listar el directorio del modulo %s. Error: %s", module.Name(), err)
-			} else {
-				// Ordenamos por version
-				sort.Slice(filesModule, func(first, second int) bool {
-					firstFile, errFirstFile := strconv.Atoi(filesModule[first].Name())
-					secondFIle, errSecondFile := strconv.Atoi(filesModule[second].Name())
-
-					if errFirstFile != nil {
-						log.Panicf("Se ha producido un error al ordenar los directorios del módulo. Direcotrio: %s. Error %s", files[first].Name(), errFirstFile)
-					}
-
-					if errSecondFile != nil {
-						log.Panicf("Se ha producido un error al ordenar los directorios del módulo. Direcotrio: %s. Error %s", files[second].Name(), errFirstFile)
-					}
-
-					return errFirstFile != nil && errSecondFile != nil && firstFile < secondFIle
-				})
 			}
+
+			// Ordenamos por version
+			sort.Slice(filesModule, func(first, second int) bool {
+				firstFile, errFirstFile := strconv.Atoi(filesModule[first].Name())
+				secondFIle, errSecondFile := strconv.Atoi(filesModule[second].Name())
+
+				if errFirstFile != nil {
+					log.Panicf("Se ha producido un error al ordenar los directorios del módulo. Direcotrio: %s. Error %s", files[first].Name(), errFirstFile)
+				}
+
+				if errSecondFile != nil {
+					log.Panicf("Se ha producido un error al ordenar los directorios del módulo. Direcotrio: %s. Error %s", files[second].Name(), errFirstFile)
+				}
+
+				return errFirstFile != nil && errSecondFile != nil && firstFile < secondFIle
+			})
 
 			// Buscamos la última versión del módulo
 			databaseService.FindVersionModule(cacheProcess, configuration, module.Name())

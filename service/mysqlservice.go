@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"rfcheckbd/beans"
-	"rfcheckbd/utils"
 	"strconv"
 	"time"
 
@@ -20,7 +19,16 @@ import (
 type MysqlDatabaseService struct {
 }
 
-func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
+// errorIsNoDataFound: Método para saber si un error es un error de no datos encontrados en el scan
+//
+// @parameter err error a verificar
+//
+// @returns true si es not null y no es error de no encontrados registros
+func errorIsNoDataFound(err error) bool {
+	return err != nil && err.Error() == "sql: no rows in result set"
+}
+
+func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) beans.CacheProcess {
 	log.Println("Connectando con la base de datos de tipo mysql")
 
 	// TODO pedir los datos por línea de comandos
@@ -42,16 +50,20 @@ func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProc
 
 	// Creamos tabla de historico de migraciones
 	createHistoryTable(cacheProcess, configuration)
+
+	return cacheProcess
 }
 
 func (service MysqlDatabaseService) FindVersionModule(cacheProcess beans.CacheProcess, configuration beans.Configuration, moduleName string) int64 {
 	var version int64
 
-	query := "SELECT version from rfchecbd_migrations where module = %s"
+	query := "SELECT version from rfchecbd_migrations where module = ?"
+
+	cacheProcess.DBSql.QueryRow(query, moduleName)
 
 	err := cacheProcess.DBSql.QueryRow(query, moduleName).Scan(&version)
 
-	if err != nil {
+	if err != nil && !errorIsNoDataFound(err) {
 		log.Panicf("Se ha produdio un error a la hora de buscar la versión del módulo. %s", err)
 	}
 
@@ -62,11 +74,11 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 	// Tenemos que buscar si está en el los registros de ficheros ejecutados
 	var id int64
 
-	queryFindFile := "SELECT h.id from rfchecbd_migrations_history h INNER JOIN rfchecbd_migrations m ON h.rfchecbd_migrations_id = m.id  where h.fileName = %s and m.module = %s"
+	queryFindFile := "SELECT h.id from rfchecbd_migrations_history h INNER JOIN rfchecbd_migrations m ON h.rfchecbd_migrations_id = m.id  where h.fileName = ? and m.module = ?"
 
-	err := cacheProcess.DBSql.QueryRow(queryFindFile, moduleName).Scan(&id)
+	err := cacheProcess.DBSql.QueryRow(queryFindFile, fileInVersion.Name(), moduleName).Scan(&id)
 
-	if err != nil {
+	if err != nil && !errorIsNoDataFound(err) {
 		log.Panicf("Se ha produdio un error a la hora de buscar la el fichero de la versión %s para el módulo %s. Error %s", version, moduleName, err)
 	}
 
@@ -84,32 +96,15 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 
 		var listParams list.List
 
-		var counterParam *int64
-
-		*counterParam = 0
-
 		execDate := time.Now().Format(time.RFC3339)
-
-		// guardamos el fichero en el historico
-		queryInsertInHistory := "INSERT INTO rfchecbd_migrations_history (`rfchecbd_migrations_id`, `fileName`, `execDate` ) " +
-			" VALUES ( " +
-			" (SELECT m.id FROM  rfchecbd_migrations m where module = %" + utils.IncrementeCounterAndReturnToString(counterParam) + "), " +
-			" %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
-			" %" + utils.IncrementeCounterAndReturnToString(counterParam) + " );"
-
-		listParams.PushBack(moduleName)
-		listParams.PushBack(fileInVersion)
-		listParams.PushBack(execDate)
-
-		queryProcessFIle = queryProcessFIle + " " + queryInsertInHistory
 
 		// En el caso de que la versión sea menor o igual a cero la insertamos inicialmente
 		if versionInt <= 0 {
 			queryInsertMigrataions := "INSERT IGNORE INTO rfchecbd_migrations (`version`, `module`, `execDate`) " +
 				" VALUES ( " +
-				" %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
-				" %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
-				" %" + utils.IncrementeCounterAndReturnToString(counterParam) + " );"
+				" ?, " +
+				" ?, " +
+				" ? );"
 
 			listParams.PushBack(versionInt)
 			listParams.PushBack(moduleName)
@@ -118,12 +113,25 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 			queryProcessFIle = queryProcessFIle + " " + queryInsertMigrataions
 		}
 
+		// guardamos el fichero en el historico
+		queryInsertInHistory := "INSERT INTO rfchecbd_migrations_history (`rfchecbd_migrations_id`, `fileName` , `execDate` ) " +
+			" VALUES ( " +
+			" (SELECT m.id FROM  rfchecbd_migrations m where module = ? ), " +
+			" ?, " +
+			" ? );"
+
+		listParams.PushBack(moduleName)
+		listParams.PushBack(fileInVersion.Name())
+		listParams.PushBack(execDate)
+
+		queryProcessFIle = queryProcessFIle + " " + queryInsertInHistory
+
 		// Query para actualizar la versión siempre por que puede que el insert de la migración ya existiera antes y por lo tanto no realizó
 		queryUpdateVersion := "UPDATE rfchecbd_migrations " +
 			"SET " +
-			" `version` = %" + utils.IncrementeCounterAndReturnToString(counterParam) + ", " +
-			" `execDate` = %" + utils.IncrementeCounterAndReturnToString(counterParam) + " " +
-			"WHERE `module` = %" + utils.IncrementeCounterAndReturnToString(counterParam) + "; "
+			" `version`  = ?, " +
+			" `execDate` = ? " +
+			"WHERE `module` = ? ; "
 
 		queryProcessFIle = queryProcessFIle + " " + queryUpdateVersion
 
@@ -150,7 +158,7 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		}
 
 		// Ejecutamos el proceso del fichero
-		_, errProcessFile := tx.ExecContext(ctx, queryProcessFIle, arrayParams)
+		_, errProcessFile := tx.ExecContext(ctx, queryProcessFIle, arrayParams...)
 
 		if errProcessFile != nil {
 

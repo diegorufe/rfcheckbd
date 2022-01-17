@@ -14,7 +14,7 @@ type IDabaseService interface {
 	// @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 	//
 	// @returns --
-	ConnectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration)
+	ConnectDatabase(cacheProcess beans.CacheProcess, configuration beans.Configuration) beans.CacheProcess
 
 	// FindVersionModuleMysql : Método apra buscar la versión del módulo para mysql
 	//

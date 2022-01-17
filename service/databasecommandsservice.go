@@ -37,7 +37,7 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 		case constants.Migrate:
 
 			// Connectamos contra la base de datos
-			databaseService.ConnectDatabase(cacheProcess, configuration)
+			cacheProcess = databaseService.ConnectDatabase(cacheProcess, configuration)
 
 			// Miramos la existencia del directorio de migraciones
 			stat, err := os.Stat(configuration.ConfigurationDatabase.PathMigrations)
@@ -126,7 +126,7 @@ func processModulesMigrations(cacheProcess beans.CacheProcess, configuration bea
 
 // processVersion: Método para procesar la versión. Ejemplo versión 10 del módulo de contabiliad
 //
-// @parameters cacheProcess cache donde guardar ciertos datos del procesado
+// @parameter cacheProcess cache donde guardar ciertos datos del procesado
 //
 // @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 //

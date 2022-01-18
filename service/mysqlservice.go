@@ -57,7 +57,7 @@ func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProc
 func (service MysqlDatabaseService) FindVersionModule(cacheProcess beans.CacheProcess, configuration beans.Configuration, moduleName string) int64 {
 	var version int64
 
-	query := "SELECT version from rfchecbd_migrations where module = ?"
+	query := "SELECT version from rfcheckbd_migrations where module = ?"
 
 	cacheProcess.DBSql.QueryRow(query, moduleName)
 
@@ -74,7 +74,7 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 	// Tenemos que buscar si está en el los registros de ficheros ejecutados
 	var id int64
 
-	queryFindFile := "SELECT h.id from rfchecbd_migrations_history h INNER JOIN rfchecbd_migrations m ON h.rfchecbd_migrations_id = m.id  where h.fileName = ? and m.module = ?"
+	queryFindFile := "SELECT h.id from rfcheckbd_migrations_history h INNER JOIN rfcheckbd_migrations m ON h.rfcheckbd_migrations_id = m.id  where h.fileName = ? and m.module = ?"
 
 	err := cacheProcess.DBSql.QueryRow(queryFindFile, fileInVersion.Name(), moduleName).Scan(&id)
 
@@ -92,15 +92,15 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		}
 
 		// Datos del fichero a string
-		queryProcessFIle := string(dataFile)
+		queryProcessFile := string(dataFile)
 
 		var listParams list.List
 
-		execDate := time.Now().Format(time.RFC3339)
+		execDate := time.Now().Format("2006-01-02 03:04:05")
 
 		// En el caso de que la versión sea menor o igual a cero la insertamos inicialmente
 		if versionInt <= 0 {
-			queryInsertMigrataions := "INSERT IGNORE INTO rfchecbd_migrations (`version`, `module`, `execDate`) " +
+			queryInsertMigrataions := "INSERT IGNORE INTO rfcheckbd_migrations (`version`, `module`, `execDate`) " +
 				" VALUES ( " +
 				" ?, " +
 				" ?, " +
@@ -110,13 +110,13 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 			listParams.PushBack(moduleName)
 			listParams.PushBack(execDate)
 
-			queryProcessFIle = queryProcessFIle + " " + queryInsertMigrataions
+			queryProcessFile = queryProcessFile + " " + queryInsertMigrataions
 		}
 
 		// guardamos el fichero en el historico
-		queryInsertInHistory := "INSERT INTO rfchecbd_migrations_history (`rfchecbd_migrations_id`, `fileName` , `execDate` ) " +
+		queryInsertInHistory := "INSERT INTO rfcheckbd_migrations_history (`rfcheckbd_migrations_id`, `fileName` , `execDate` ) " +
 			" VALUES ( " +
-			" (SELECT m.id FROM  rfchecbd_migrations m where module = ? ), " +
+			" (SELECT m.id FROM  rfcheckbd_migrations m where module = ? ), " +
 			" ?, " +
 			" ? );"
 
@@ -124,16 +124,17 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		listParams.PushBack(fileInVersion.Name())
 		listParams.PushBack(execDate)
 
-		queryProcessFIle = queryProcessFIle + " " + queryInsertInHistory
+		queryProcessFile = queryProcessFile + " " + queryInsertInHistory
 
 		// Query para actualizar la versión siempre por que puede que el insert de la migración ya existiera antes y por lo tanto no realizó
-		queryUpdateVersion := "UPDATE rfchecbd_migrations " +
+
+		queryUpdateVersion := "UPDATE rfcheckbd_migrations " +
 			"SET " +
 			" `version`  = ?, " +
 			" `execDate` = ? " +
 			"WHERE `module` = ? ; "
 
-		queryProcessFIle = queryProcessFIle + " " + queryUpdateVersion
+		queryProcessFile = queryProcessFile + " " + queryUpdateVersion
 
 		listParams.PushBack(versionInt)
 		listParams.PushBack(execDate)
@@ -158,7 +159,7 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		}
 
 		// Ejecutamos el proceso del fichero
-		_, errProcessFile := tx.ExecContext(ctx, queryProcessFIle, arrayParams...)
+		_, errProcessFile := tx.ExecContext(ctx, queryProcessFile, arrayParams...)
 
 		if errProcessFile != nil {
 
@@ -194,7 +195,7 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 // @returns --
 func createVersionTable(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
 
-	query := "CREATE TABLE IF NOT EXISTS `rfchecbd_migrations` (" +
+	query := "CREATE TABLE IF NOT EXISTS `rfcheckbd_migrations` (" +
 		"	`id` int(11) NOT NULL auto_increment,   " +
 		"	`version` int(11) NOT NULL COMMENT 'Versión del módulo',     " +
 		"	`module` varchar(250)  NOT NULL COMMENT 'Nombre del módulo' ,  " +
@@ -219,14 +220,14 @@ func createVersionTable(cacheProcess beans.CacheProcess, configuration beans.Con
 // @returns --
 func createHistoryTable(cacheProcess beans.CacheProcess, configuration beans.Configuration) {
 
-	query := "CREATE TABLE IF NOT EXISTS `rfchecbd_migrations_history` (" +
+	query := "CREATE TABLE IF NOT EXISTS `rfcheckbd_migrations_history` (" +
 		"	`id` int(11) NOT NULL auto_increment,   " +
-		"	`rfchecbd_migrations_id` int(11) NOT NULL COMMENT 'Módulo de la migración',     " +
+		"	`rfcheckbd_migrations_id` int(11) NOT NULL COMMENT 'Módulo de la migración',     " +
 		"	`fileName` varchar(500)  NOT NULL COMMENT 'Nombre del fichero que se ejecuto' ,  " +
 		"	`execDate` DATETIME  NOT NULL COMMENT 'Fecha de ejecución del fichero' , " +
-		"	UNIQUE KEY `module_UNIQUE` (`rfchecbd_migrations_id`, `fileName`),  " +
+		"	UNIQUE KEY `module_UNIQUE` (`rfcheckbd_migrations_id`, `fileName`),  " +
 		"	 PRIMARY KEY  (`id`),  " +
-		"    FOREIGN KEY (rfchecbd_migrations_id) REFERENCES rfchecbd_migrations(id) " +
+		"    FOREIGN KEY (rfcheckbd_migrations_id) REFERENCES rfcheckbd_migrations(id) " +
 		"  ) COMMENT 'Tabla que contiene el histórico de ficheros pasados en cada migración';"
 
 	_, err := cacheProcess.DBSql.Exec(query)

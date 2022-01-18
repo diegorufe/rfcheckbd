@@ -33,7 +33,7 @@ func (service MysqlDatabaseService) ConnectDatabase(cacheProcess beans.CacheProc
 
 	// TODO pedir los datos por línea de comandos
 
-	strConnection := configuration.ConfigurationDatabase.User + ":" + configuration.ConfigurationDatabase.Password + "@tcp(" + configuration.ConfigurationDatabase.Host + ":" + strconv.FormatInt(configuration.ConfigurationDatabase.Port, 10) + ")/" + configuration.ConfigurationDatabase.DatabaseName
+	strConnection := configuration.ConfigurationDatabase.User + ":" + configuration.ConfigurationDatabase.Password + "@tcp(" + configuration.ConfigurationDatabase.Host + ":" + strconv.FormatInt(configuration.ConfigurationDatabase.Port, 10) + ")/" + configuration.ConfigurationDatabase.DatabaseName + "?multiStatements=true&interpolateParams=true"
 
 	db, err := sql.Open("mysql", strConnection)
 

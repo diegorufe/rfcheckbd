@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"rfcheckbd/beans"
 	"strconv"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -94,9 +93,36 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		// Datos del fichero a string
 		queryProcessFile := string(dataFile)
 
+		// Abrimos transacción
+		ctx := context.Background()
+
+		tx, errTx := cacheProcess.DBSql.BeginTx(ctx, nil)
+
+		if errTx != nil {
+			log.Panicf("Se ha producido un error al abrir una transación para ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errTx)
+		}
+
+		// Ejecutamos el proceso del fichero
+		_, errProcessFile := tx.ExecContext(ctx, queryProcessFile)
+
+		if errProcessFile != nil {
+
+			errorRollback := tx.Rollback()
+
+			if errorRollback != nil {
+				log.Panicf("Se ha producido un error al realizar el rollback de la transación al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s. Error procesado fichero %s", fileInVersion.Name(), version, moduleName, errorRollback, errProcessFile)
+			}
+
+			log.Panicf("Se ha producido un error al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errProcessFile)
+
+		}
+
+		queryProcessFile = ""
+
 		var listParams list.List
 
-		execDate := time.Now().Format("2006-01-02 03:04:05")
+		// Obtenemos la fecha de ejercución de la cache de procesos
+		execDate := cacheProcess.ExecDate
 
 		// En el caso de que la versión sea menor o igual a cero la insertamos inicialmente
 		if versionInt <= 0 {
@@ -150,23 +176,15 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 			counter = counter + 1
 		}
 
-		// Abrimos transacción
-		ctx := context.Background()
-		tx, errTx := cacheProcess.DBSql.BeginTx(ctx, nil)
+		// Ejecutamos el proceso del actualizar las migraciones
+		_, errProcessUpdateMigrations := tx.ExecContext(ctx, queryProcessFile, arrayParams...)
 
-		if errTx != nil {
-			log.Panicf("Se ha producido un error al abrir una transación para ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errTx)
-		}
-
-		// Ejecutamos el proceso del fichero
-		_, errProcessFile := tx.ExecContext(ctx, queryProcessFile, arrayParams...)
-
-		if errProcessFile != nil {
+		if errProcessUpdateMigrations != nil {
 
 			errorRollback := tx.Rollback()
 
 			if errorRollback != nil {
-				log.Panicf("Se ha producido un error al realizar el rollback de la transación al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s. Error procesado fichero %s", fileInVersion.Name(), version, moduleName, errorRollback, errProcessFile)
+				log.Panicf("Se ha producido un error al realizar el rollback de la transación al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s. Error procesado fichero %s", fileInVersion.Name(), version, moduleName, errorRollback, errProcessUpdateMigrations)
 			}
 
 			log.Panicf("Se ha producido un error al ejecutar el contenido del fichero %s para la versión %s del módulo %s. Error %s", fileInVersion.Name(), version, moduleName, errProcessFile)

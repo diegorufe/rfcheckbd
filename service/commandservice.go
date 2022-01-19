@@ -10,15 +10,17 @@ import (
 //
 // @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 //
+// @parameter execDate fecha de ejecucion en formato string
+//
 // @returns ---
-func ProccessCommands(configuration beans.Configuration) {
+func ProccessCommands(configuration beans.Configuration, execDate string) {
 
 	log.Println("*** Procesando comandos inicio ***")
 
 	start := utils.MakeTimestamp()
 
 	// Procesamos comandos de base de datos
-	ProccessDatabseCommands(configuration)
+	ProccessDatabseCommands(configuration, execDate)
 
 	end := utils.MakeTimestamp()
 

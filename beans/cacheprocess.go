@@ -8,4 +8,5 @@ import (
 type CacheProcess struct {
 	DBSql         *sql.DB // Connexión sql con la base de datos
 	VersionModule int     // Indicamos la versión que se está empelando actualmente para el módulo
+	ExecDate      string  // fecha de ejecucion en formato string
 }

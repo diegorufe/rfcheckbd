@@ -16,12 +16,17 @@ import (
 //
 // @parameter configuration configuración que tiene todos los parámetros de configuración y comandos a procesar
 //
+// @parameter execDate fecha de ejecucion en formato string
+//
 // @returns ---
-func ProccessDatabseCommands(configuration beans.Configuration) {
+func ProccessDatabseCommands(configuration beans.Configuration, execDate string) {
 	log.Println("Procesando comandos base de datos")
 
 	var cacheProcess beans.CacheProcess
 	var databaseService IDabaseService
+
+	// Nos quedamos con la fecha de ejercicón en la cache de los procesos
+	cacheProcess.ExecDate = execDate
 
 	switch configuration.ConfigurationDatabase.Type {
 	case constants.Mysql:
@@ -38,6 +43,8 @@ func ProccessDatabseCommands(configuration beans.Configuration) {
 
 			// Connectamos contra la base de datos
 			cacheProcess = databaseService.ConnectDatabase(cacheProcess, configuration)
+			// Nos quedamos con la fecha de ejercicón en la cache de los procesos
+			cacheProcess.ExecDate = execDate
 
 			// Miramos la existencia del directorio de migraciones
 			stat, err := os.Stat(configuration.ConfigurationDatabase.PathMigrations)

@@ -8,7 +8,11 @@ import (
 )
 
 // Config Método para realizar la configuración de la aplicación
-func Config() beans.Configuration {
+//
+// @parameter execDate fecha de ejecucion en formato string
+//
+// @returns --
+func Config(execDate string) beans.Configuration {
 
 	// Flags del log para dejarlo "BONITO"
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
@@ -21,7 +25,7 @@ func Config() beans.Configuration {
 		loadDefaultConfig(&configuration)
 
 		// Configuramos los logs
-		ConfigLog(configuration)
+		ConfigLog(configuration, execDate)
 
 	} else {
 		log.Panic("No se ha podido cargar la configuración de la aplicación")

@@ -124,8 +124,8 @@ func (service MysqlDatabaseService) ProcessFileInVersion(cacheProcess beans.Cach
 		// Obtenemos la fecha de ejercución de la cache de procesos
 		execDate := cacheProcess.ExecDate
 
-		// En el caso de que la versión sea menor o igual a cero la insertamos inicialmente
-		if versionInt <= 0 {
+		// Si no tenemos versión la insertamos siempre
+		if cacheProcess.VersionModule <= 0 {
 
 			queryInsertMigrataions := "INSERT IGNORE INTO " + configuration.AppName + "_migrations (`version`, `module`, `execDate`) " +
 				" VALUES ( " +

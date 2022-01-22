@@ -111,9 +111,6 @@ func processModulesMigrations(cacheProcess beans.CacheProcess, configuration bea
 				return errFirstFile != nil && errSecondFile != nil && firstFile < secondFIle
 			})
 
-			// Buscamos la última versión del módulo
-			databaseService.FindVersionModule(cacheProcess, configuration, module.Name())
-
 			// Recorremos los ficheros del módulo que serán las versiones
 			for _, fileVersionModule := range filesModule {
 				log.Printf("Procesando versión a migrar %s del módulo %s", fileVersionModule.Name(), module.Name())
@@ -154,6 +151,9 @@ func processVersion(cacheProcess beans.CacheProcess, configuration beans.Configu
 	if err != nil {
 		log.Panicf("Error al convertir a entero la versión del módulo. %s", err)
 	}
+
+	// Buscamos la versión del módulo
+	cacheProcess.VersionModule = int(databaseService.FindVersionModule(cacheProcess, configuration, moduleName))
 
 	if versionToProcess >= cacheProcess.VersionModule {
 		// Leemos los ficheros de la versión

@@ -65,6 +65,14 @@ func ProccessDatabseCommands(configuration beans.Configuration, execDate string)
 				log.Panicf("Se ha producido un error al listar el directorio de migraciones %s", err)
 			}
 
+			// Ordenamos los módulos por nombre
+			sort.Slice(files, func(first, second int) bool {
+				firstFile := files[first].Name()
+				secondFIle := files[second].Name()
+
+				return firstFile < secondFIle
+			})
+
 			processModulesMigrations(cacheProcess, configuration, databaseService, files)
 
 		}

@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -20,7 +21,13 @@ func Config(execDate string) beans.Configuration {
 	// Flags del log para dejarlo "BONITO"
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
 
-	configuration, err := loadConfiguration("")
+	filePath := flag.String("file", "", "Fichero de configuración")
+
+	flag.Parse()
+
+	log.Printf("Ruta fichero de configuración %s", *filePath)
+
+	configuration, err := loadConfiguration(*filePath)
 
 	if err == nil {
 
@@ -147,8 +154,7 @@ func loadConfiguration(pathJsonFile string) (beans.Configuration, error) {
 
 		err = decoder.Decode(&configuration)
 	} else {
-		err = nil
-		configuration = beans.Configuration{}
+		log.Panicf("Se ha producido un error al abrir el fichero de configuracion %s", pathJsonFile)
 	}
 
 	return configuration, err

@@ -24,7 +24,7 @@ func ProccessCommands(configuration beans.Configuration, execDate string) {
 
 	end := utils.MakeTimestamp()
 
-	log.Printf("Tiempo tardado en procesar comandos: %d", (end - start))
+	log.Printf("Tiempo tardado en procesar comandos: %d ms", (end - start))
 
 	log.Println("*** Procesando comandos fin ***")
 }

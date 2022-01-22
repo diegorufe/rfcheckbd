@@ -1,10 +1,13 @@
 package config
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"rfcheckbd/beans"
+	"strings"
 )
 
 // Config Método para realizar la configuración de la aplicación
@@ -46,7 +49,6 @@ func loadDefaultConfig(configuration *beans.Configuration) {
 
 	// Configuración por defecto para la base datos
 	loadDefaultConfigDatabase(configuration)
-
 }
 
 // loadDefaultConfigLog configuración por defecto para log
@@ -56,6 +58,11 @@ func loadDefaultConfig(configuration *beans.Configuration) {
 // @retuns --
 func loadDefaultConfigLog(configuration *beans.Configuration) {
 	configuration.ConfigurationLog.Compress = true
+
+	// Si el nombre de la aplicación está vacío ponemos uno por defecto
+	if configuration.AppName == "" {
+		configuration.AppName = "rfcheckbd"
+	}
 
 	// Si no se pasa tiempo máximo lo ponemos a 30
 	if configuration.ConfigurationLog.MaxAge <= 0 {
@@ -74,7 +81,7 @@ func loadDefaultConfigLog(configuration *beans.Configuration) {
 
 	// En el caso de no poner una ruta de fichero se pone la ruta del ejecutable y se pone el nombre del proyecto como fichero de log
 	if configuration.ConfigurationLog.PathFileLogging == "" {
-		configuration.ConfigurationLog.PathFileLogging = "rfcheckbd.log"
+		configuration.ConfigurationLog.PathFileLogging = configuration.AppName + ".log"
 	}
 }
 
@@ -85,6 +92,33 @@ func loadDefaultConfigLog(configuration *beans.Configuration) {
 // @retuns --
 func loadDefaultConfigDatabase(configuration *beans.Configuration) {
 
+	// En el caso de peder usuario y contraseña de la base de datos tenemos que pedirlo por consola
+	if configuration.ConfigurationDatabase.AskForUserPassword {
+		reader := bufio.NewReader(os.Stdin)
+
+		fmt.Println("Introduce usuario de la base de datos: ")
+		user, err := reader.ReadString('\n')
+
+		if err != nil {
+			log.Panicf("No se ha podido procesar el usuario de la base de datos. Error %s", err)
+		}
+
+		user = strings.TrimRight(user, "\r\n")
+
+		configuration.ConfigurationDatabase.User = user
+
+		fmt.Println("Introduce contraseña de la base de datos: ")
+		password, err := reader.ReadString('\n')
+
+		if err != nil {
+			log.Panicf("No se ha podido procesar la contraseña de la base de datos. Error %s", err)
+		}
+
+		password = strings.TrimRight(password, "\r\n")
+
+		configuration.ConfigurationDatabase.Password = password
+
+	}
 }
 
 // loadConfiguration : Método para cargar la configuración

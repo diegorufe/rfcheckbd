@@ -23,5 +23,5 @@ func main() {
 
 	end := utils.MakeTimestamp()
 
-	log.Printf("*** Tiempo tardado en realizar operaciones del ejecutable: %d", (end - start))
+	log.Printf("*** Tiempo tardado en realizar operaciones del ejecutable: %d ms", (end - start))
 }

@@ -4,9 +4,14 @@ El objetivo de este proyecto es poder realizar migraciones y comprobaciones de b
 
 ## Funcionalidades
 
+### Implementadas
+
+- Implemetación de migración de bases de datos mysql
+- Separación de versionado de base de datos por módulos 
+
+### Pendientes
+
 - (Pendiente) Realizar backup base de datos mysql
-- (Pendiente) Implemetación de migración de bases de datos mysql
-- (Pendiente) Separación de versionado de base de datos por módulos 
 - (Pendiente) Realizar backup base de datos postgress
 - (Pendiente) Implemetación de migración de bases de datos postgress
 - (Pendiente) Modo servidor web
@@ -27,3 +32,13 @@ El objetivo de este proyecto es poder realizar migraciones y comprobaciones de b
 ### Instalación
 
 Simplemente es desacargase el fuente del código de github tener go instalado en algún equipo y construir la aplicación para el sistema operativo que se necesite. (Pendiente) Cuando se tenga modo web se podría desplegar en un docker/kubernetes
+
+## Versiones
+
+### 1.0.0
+
+- Solo modo consola
+- Implemetación de migración de bases de datos mysql
+- Separación de versionado de base de datos por módulos 
+- Separación de logs por fecha de ejecución 
+- Pedir datos de usuario y contraseña de base de datos por consola

@@ -29,15 +29,44 @@ El objetivo de este proyecto es poder realizar migraciones y comprobaciones de b
 - Tener en cuenta ecosistemas ORM y OGM (SQL y NOSQL)
 - No genera ningún beneficio economico directo su desarrolo
 
-### Instalación
+## Instalación
 
 Simplemente es desacargase el fuente del código de github tener go instalado en algún equipo y construir la aplicación para el sistema operativo que se necesite. (Pendiente) Cuando se tenga modo web se podría desplegar en un docker/kubernetes
+
+## Ejemplos
+
+Fichero rfcheckbd.json
+
+```
+{
+  "AppName" : "rfindustries",
+  "ConfigurationDatabase": {
+    "Commands": [1],
+    "User": "root",
+    "Password": "root",
+    "DatabaseName": "test",
+    "PathMigrations": "E:/trabajo/repos/go/testbd",
+    "Host" : "localhost",
+    "Port" : 3306,
+    "AskForUserPassword" : false
+  },
+  "ConfigurationLog":{
+    "LogPerProcess" : true
+  }
+}
+
+```
+rfcheckdb.exe --file=rfcheckbd.json
+
+- "AskForUserPassword" : true, pedirá los datos de usaurio y contraseña por consola.
+- "LogPerProcess" : true, generará un fichero de log por cada ejecución del ejecutable
 
 ## Versiones
 
 ### 1.0.0
 
 - Solo modo consola
+- Comandos disponibles: 1 (migración de base de datos)
 - Implemetación de migración de bases de datos mysql
 - Separación de versionado de base de datos por módulos 
 - Separación de logs por fecha de ejecución 
